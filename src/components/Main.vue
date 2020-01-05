@@ -63,7 +63,7 @@ export default {
     return {
       swatches:[],
       scopes:'user-top-read,playlist-modify-private,ugc-image-upload',
-      client_id:'6cc5f35a16924bde8f2e4ced1d424601',
+      client_id:process.env.VUE_APP_SPOTIFY_KEY,
       redirect_uri:'http://localhost:8080',
       top_tracks:{},
       compare_tracks:{},
@@ -375,7 +375,7 @@ button:hover{
 }
 .source-img{
   width: 94%;
-  height: 300px;
+  height: 50vh;
   display: inline-block;
   margin: 3%;
 }

@@ -26,7 +26,6 @@
             bg = swatch.getHex();
           }
         });
-        // let bg = this.swatches[3].getHex();
         return `stroke-width: 0px; background-color: ${bg};`;
       }
     },
