@@ -16,11 +16,16 @@ export default {
 </script>
 
 <style>
+@import url('https://fonts.googleapis.com/css?family=Barlow&display=swap');
+*{
+  font-family: 'Barlow', Helvetica, sans-serif;
+  padding: 0;
+  margin: 0;
+}
 #app {
-  font-family: 'Avenir', Helvetica, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  color: #2c3e50;
+  color: #2c3450;
 }
 li{
   list-style-type: none;

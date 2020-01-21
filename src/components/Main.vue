@@ -1,9 +1,26 @@
 <template>
   <main>
-
-    <div  v-if="this.swatches.length == 0" class="upload" @drop.prevent="handleDrop" @dragover.prevent>
-      <h1>UPLOAD AN IMAGE</h1>
+    <div id="welcome">
+      <h1>Hi. Let's see what your favorite music looks like.</h1>
+      <button v-if="Object.keys(this.tracks).length == 0" @click="spotifyAuth">Tell us what you're  listening to.</button>
     </div>
+
+    <div id="tracks" v-bind:class="Object.keys(this.tracks).length > 0 ? 'active':''">
+      <h2 v-if="Object.keys(this.tracks).length > 0" >Great taste, here's what we see:</h2>
+      <ul id="all_tracks" v-if="Object.keys(this.tracks).length > 0" >
+        <!-- <li>Your Top Songs</li> -->
+        <li v-for="track in this.colorsort(this.tracks)" v-bind:key="track.features.id">
+          <div v-bind:style="paint(track)"></div>
+          {{track.name}}
+        </li>
+      </ul>
+    </div>
+    <h3 v-if="this.swatches.length == 0">So, what to listen to today? Pick a photo of your vibe.</h3>
+    <div class="upload" @drop.prevent="handleDrop" @dragover.prevent>
+      <em>UPLOAD AN IMAGE</em>
+      <input type="file" class="file-upload" ref="profileImage" @change="handleDrop"/>
+    </div>
+    <h3 v-if="this.matched_tracks.length > 0">These {{this.matched_tracks.length}} tracks look like they fit just right. Save them as a playlist and listen wherever you want.</h3>
     <div class="src-wrap" @drop.prevent="handleDrop" @dragover.prevent>
       <div class="source-img" ref="srcImg"> </div>
       <ul>
@@ -30,18 +47,24 @@
           <div v-bind:style="paint(track)"></div>
           <span>{{track.name}}</span>
         </li>
+        <li><button v-if="this.swatches.length > 0 && Object.keys(this.top_tracks).length == 0" @click="spotifyAuth">Cool, let's Get your History</button>
+        <button v-if="this.matched_tracks.length > 0 && !this.embedUrl" @click="createPlaylist">Save to Spotify</button>
+        <a v-if="this.embedUrl" :href="this.embedUrl"><button>Open In Spotify</button></a></li>
       </ul>
-      <button v-if="this.swatches.length > 0 && Object.keys(this.top_tracks).length == 0" @click="spotifyAuth">Cool, let's Get your History</button>
-      <button v-if="this.matched_tracks.length > 0" @click="createPlaylist">Save to Spotify</button>
-      <div id="embed-wrap"></div>
+      <!-- <ul id="rec_tracks" v-if="Object.keys(this.rec_tracks).length > 0" >
+        <li>Recommended Songs:</li>
+        <li v-for="track in this.colorsort(this.rec_tracks)"  v-bind:key="track.id">
+          <div v-bind:style="paint(track)"></div>
+          <span>{{track.name}}</span>
+        </li>
+        <li><button v-if="this.swatches.length > 0 && Object.keys(this.top_tracks).length == 0" @click="spotifyAuth">Cool, let's Get your History</button>
+        <button v-if="this.matched_tracks.length > 0" @click="createPlaylist">Save to Spotify</button></li>
+      </ul> -->
+      <!-- <button v-if="this.swatches.length > 0 && Object.keys(this.top_tracks).length == 0" @click="spotifyAuth">Cool, let's Get your History</button>
+      <div id="embed-wrap" v-if="this.embedUrl">
+
+      </div> -->
     </div>
-    <!-- <ul id="compare_tracks" v-if="Object.keys(this.compare_tracks).length > 0" >
-      <li>Top songs of the decade</li>
-      <li v-for="(track, key) in this.compare_tracks"  v-bind:key="key">
-        <div v-bind:style="paint(track)"></div>
-        {{track.name}}
-      </li>
-    </ul> -->
 
 
   </main>
@@ -64,14 +87,21 @@ export default {
       swatches:[],
       scopes:'user-top-read,playlist-modify-private,ugc-image-upload',
       client_id:process.env.VUE_APP_SPOTIFY_KEY,
-      redirect_uri:'http://localhost:8080',
+      redirect_uri:process.env.VUE_APP_REDIRECT_URI,
       top_tracks:{},
       compare_tracks:{},
       matched_tracks:[],
+      short_tracks:[],
+      med_tracks:[],
+      long_tracks:[],
+      recommended_tracks:{},
       token:null,
       spotifyProvider:null,
       username:'',
-      bgColor:''
+      bgColor:'',
+      merged:false,
+      embedUrl:false,
+      loading:false
 
     }
   },
@@ -85,7 +115,10 @@ export default {
   },
   computed:{
     tracks: function(){
-      return this.top_tracks
+      return this.top_tracks;
+    },
+    rec_tracks: function(){
+      return this.recommended_tracks;
     }
   },
   methods:{
@@ -115,7 +148,7 @@ export default {
         });
         setProvider(spotifyProvider);
         // get all the songs we can!
-        let terms = ['long_term', 'short_term', 'medium_term'];
+        let terms = [ 'short_term'];
         terms.forEach((term)=>{
           spotifyProvider.get(`me/top/tracks?limit=50&time_range=${term}`).then(response => {
             // trackObj = {};
@@ -141,7 +174,7 @@ export default {
     },
     setTrack(item, target){
       if(typeof this[target][item.id] == 'undefined'){
-          this.$set(this[target], item.id, {});
+          this.$set(this[target], item.id, {'features':{'id':item.id, 'hsl':[0,0,0]}});
       }
       let name = item.artists[0].name+' : '+item.name;
       this.$set(this[target][item.id], 'name', name);
@@ -154,16 +187,32 @@ export default {
     },
     getFeatures(ids, provider, target){
       let setFeatures = this.setTrackFeatures;
-      let match = this.matchTracks
+      let match = this.matchTracks;
+      let swatches = this.swatches;
+      let merge = this.mergeTracks;
       if(provider){
         provider.get(`audio-features/?ids=${ids}`)
           .then(response => {
             let features = response.data.audio_features
             features.map(item => setFeatures(item, target));
             // console.info('features: ', features);
-            match();
+            if(swatches.length > 0 && target == 'top_tracks'){
+              match();
+            }
+            if(target == 'recommended_tracks'){
+              merge();
+            }
           });
       }
+    },
+    mergeTracks(){
+      if(!this.merged){
+        Object.keys(this.rec_tracks).forEach((key) => {
+          this.matched_tracks.push(this.rec_tracks[key]);
+        });
+        this.merged = true;
+      }
+
     },
     createPlaylist(){
       let provider = this.spotifyProvider;
@@ -229,6 +278,7 @@ export default {
     },
     updatePlaylistImage(url, id){
       let generateEmbed = this.generateEmbed;
+      // let embedUrl = this.embedUrl;
       axios({
         method:'put',
         url: `https://api.spotify.com/v1/playlists/${id}/images`,
@@ -240,15 +290,20 @@ export default {
       })
         .then((response, e ) => {
           console.info('img response', response);
-          let embed = document.querySelector('#embed-wrap');
-          embed.innerHTML = generateEmbed(id);
+          generateEmbed(id);
+          // embedUrl = embed;
           if(e){
             console.error('img error', e);
           }
         });
     },
     generateEmbed(id){
-      return `<a href="spotify:playlist:${id}"><button class="button">Open in Spotify</button></a>`
+      this.embedUrl = `spotify:playlist:${id}`;
+      // setTimeout(3000, ()=> {
+      //
+      // })
+
+      // return `spotify:playlist:${id}`
       // return `<iframe src="https://open.spotify.com/embed/playlist/${id}" width="300" height="380" frameborder="0" allowtransparency="true" allow="encrypted-media"></iframe>`
     },
     hsl(obj){
@@ -263,6 +318,31 @@ export default {
       }else{
         return [0,0,0];
       }
+    },
+    colorsort(arr){
+      let tracks = [];
+      let array = Object.keys(arr);
+      array.forEach((item)=>{
+        tracks.push(arr[item]);
+      });
+
+      // sort by lightness
+      let lightnessFilter = tracks.sort((a, b)=>{
+          return a.features['hsl'][2] - b.features['hsl'][2];
+      })
+      // sort by saturation
+     let satFilter = lightnessFilter.sort((a, b)=>{
+         return a.features['hsl'][1] - b.features['hsl'][1];
+     })
+      //  sort by Hue
+      let hueFilter = satFilter.sort((a, b)=>{
+          return a.features['hsl'][0] - b.features['hsl'][0];
+
+      })
+
+
+      // tracks = lightnessFilter;
+      return hueFilter;
     },
     matchTracks(){
       let swatchesHsl = this.swatches.map(swatch => swatch.getHsl());
@@ -286,6 +366,13 @@ export default {
         console.log('matched tracks: ', matched.length);
       });
       this.matched_tracks = matched;
+      // get recommendations
+      console.log('GET RECS', this.rec_tracks);
+      if(Object.keys(this.rec_tracks).length == 0){
+        this.searchSwatch(this.swatches, this.matched_tracks);
+
+      }
+
     },
     paint(obj){
       // valence = lightness 0-100%
@@ -313,28 +400,58 @@ export default {
       // console.log(vibrant);
       // this.swatches = vibrant.swatches();
     },
+    searchSwatch(swatches, tracks){
+      // TO DO: RECS: https://developer.spotify.com/documentation/web-api/reference/browse/get-recommendations/
+      let seed = tracks.slice(0,5).map((track) => track.features.id).join(',');
+      let setTrackInfo = this.setTrack;
+      let fetchFeatures = this.getFeatures;
+      Object.keys(swatches).forEach((key)=>{
+        let swatch = swatches[key];
+        let hsl = swatch.getHsl();
+        // how do we make the hue match
+        let targetKey = parseInt(hsl[0]*360);
+        let keyLookup = Object.keys(map).map((key) => `${key}:`+parseInt(map[key]));
+        let keyQuery = 0;
+        keyLookup.forEach((keyHash)=>{
+          let vals = keyHash.split(':');
+          if(Math.abs(targetKey - parseInt(vals[1])) <= 20){
+            keyQuery = vals[0]
+          }
+        });
+        let query = `seed_tracks=${seed}&target_key=${keyQuery}&target_liveness=${hsl[2].toFixed(1)}&target_valence=${hsl[2].toFixed(1)}&target_energy=${hsl[1].toFixed(1)}&target_danceability=${hsl[1].toFixed(1)}&limit=5`;
+        let spotifyProvider = this.spotifyProvider;
+        spotifyProvider.get(`recommendations?${query}`).then(response => {
+          // trackObj = {};
+          let ids = response.data.tracks.map(item => item.id).join(",");
+          response.data.tracks.map(item => {
+            setTrackInfo(item, 'recommended_tracks');
+          } );
+          fetchFeatures(ids, spotifyProvider, 'recommended_tracks');
+        });
+
+      });
+      // Object.keys(this.recommended_tracks).forEach((track)=>{
+      //   this.matched_tracks.push(track);
+      // });
+    },
     processSwatches(obj){
       const colorsSort = [];
+      // let searchSwatch = this.searchSwatch;
       Object.keys(obj).forEach((swatch)=> {
-        console.info(swatch);
         obj[swatch].name = swatch;
+
         colorsSort.push(obj[swatch])
       });
-      // colorsSort.sort((a,b)=>{
-      //   console.log(a.population, b.population, b.population < a.population);
-      //   return a.population - b.population
-      // })
-      // this.$set()
       this.swatches = colorsSort;
+      this.recommended_tracks = {};
+      this.merged = false;
       if(Object.keys(this.top_tracks).length > 0){
         this.matchTracks();
       }
-      console.log('sorted', colorsSort, this.top_tracks);
     },
     handleDrop(e){
-      let files = e.dataTransfer.files;
+      let files = e.dataTransfer ? e.dataTransfer.files:e.target.files;
       let img = files[0];
-      console.log("image", img)
       let parse = this.parseSwatch;
       let reader = new FileReader();
 
@@ -354,9 +471,47 @@ export default {
 
 <!-- Add "scoped" attribute to limit CSS to this component only -->
 <style scoped>
-button, .button{
+@import url('https://fonts.googleapis.com/css?family=Barlow:400,900&display=swap');
+*{
+  font-family: 'Barlow', Helvetica, sans-serif;
+}
+#welcome{
+  height: 50vh;
+  position: relative;
+  background: #ffc454;
+  padding: 5vh;
+}
+#welcome h1{
+  font-size: 3rem;
+  text-transform: uppercase;
+}
+#tracks{
+  background: #fff;
+  min-height: 50vh;
+  transform: translateY(0vh);
+  opacity: 0;
+  z-index: 12;
+  position: relative;
+  margin: 0vh 5vh;
+  /* display: block; */
+  padding: 0px 20px;
+  /* clear: both; */
+  /* height: auto; */
+  display: inline-block;
+  transition-delay: .3s;
+  transition:transform .2s, opacity .2s;
+}
+#tracks h2{
+  padding: 10px 0;
+}
+#tracks.active{
+  opacity: 1;
+  transform:translateY(-20vh);
+  margin-bottom: -20vh;
+}
+button, .button, #embed-wrap a button, button.button{
   background:#fff;
-  border:3px solid #000;
+  border:3px solid #2c3450;
   border-radius:5px;
   transition:background .3s, color .3s;
   padding:12px 24px;
@@ -364,14 +519,55 @@ button, .button{
   margin:12px;
 }
 button:hover{
-  background:#000;
+  background:#2c3450;
   color:#fff;
   cursor: pointer;
+}
+input[type="file"]{
+  opacity: 0;
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  top: 0;
+  left: 0;
+}
+input[type="file"]:hover{
+  cursor: pointer;
+}
+h4{
+  padding: 10vh 15vh;
+  text-align: center;
+  font-weight: 400;
+}
+#all_tracks{
+  width: 100%;
+  margin:0;
+  padding: 0;
+
+}
+
+#all_tracks li{
+  width:30%;
+  clear:both;
+  display: inline-block;
+  vertical-align: top;
+}
+h3{
+  text-align: center;
+  font-size: 2rem;
+  padding: 10vh 5vh;
+  background: #4adeef;
+  margin: 5vh 0 0;
 }
 .upload{
   background: #ddd;
   width: 90%;
   padding: 5%;
+  display: block;
+  clear: both;
+  text-align: center;
+  font-weight: 400;
+  position: relative;
 }
 .source-img{
   width: 94%;
@@ -415,5 +611,39 @@ button:hover{
   top: 0;
   z-index: -1;
   width: 100%;
+}
+canvas{
+  position: absolute;
+}
+em.loading{
+  letter-spacing: 3px;
+}
+@media (max-width: 600px){
+  #all_tracks li{
+    width: 100%;
+  }
+  .list-wrap li{
+    font-size: 12px;
+  }
+  #tracks{
+    margin: 0vh 2vh;
+  }
+  #tracks.active{
+    transform: translateY(0vh);
+    margin-bottom: 0vh;
+  }
+  #svg-wrap{
+    position: relative;
+    /* margin-bottom: -150px; */
+  }
+  #top_tracks{
+    width: 100%;
+  }
+  .upload{
+    height: 50vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
 }
 </style>

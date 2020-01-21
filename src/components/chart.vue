@@ -1,6 +1,7 @@
 <template>
   <div id="svg-wrap">
-    <svg :style="this.background" viewBox="-540 -540 1080 1080" id="svg-holder"></svg>
+    <!-- to do: conditional viewBox coords based on track length -->
+    <svg :style="this.background" :viewBox="this.offset" id="svg-holder"></svg>
     <canvas id="svg-canvas"></canvas>
     <img id="svg-image"/>
   </div>
@@ -27,6 +28,22 @@
           }
         });
         return `stroke-width: 0px; background-color: ${bg};`;
+      },
+      offset: function(){
+        let opts = [
+          "0 0 1080 1080",
+          "540 0 1080 1080",
+          "0 540 1080 1080",
+          "-540 0 1080 1080",
+          "0 -540 1080 1080",
+          "-540 540 1080 1080",
+          "540 -540 1080 1080",
+          "-540 -540 1080 1080",
+          "540 540 1080 1080",
+        ]
+        let index = Math.abs(Math.floor(Math.random()*9)-1);
+        console.log(index);
+        return opts[index];
       }
     },
     methods:{
@@ -43,10 +60,11 @@
           // add attrs
           let scale = (100*spacing)+((25*index)+20);
           let width = Math.floor(Math.random()*(scale%13)+5);
+          let radius = (scale+width+spacing)+5*index;
           let attrs = {
             cx:540,
             cy:540,
-            r:(scale+width+spacing)+5*index,
+            r:radius,
             'stroke-width':width,
             'fill':'transparent',
             stroke:`hsl(${(360*track.features.hsl[0])},${(track.features.hsl[1]*100)+'%'},${(track.features.hsl[2]*100)+'%'})`,
@@ -62,4 +80,8 @@
     }
   }
 </script>
-<style></style>
+<style>
+#svg-canvas{
+  position: absolute;
+}
+</style>
