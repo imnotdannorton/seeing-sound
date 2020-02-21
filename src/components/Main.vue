@@ -21,7 +21,7 @@
         <summary>Short Term</summary>
 
       </details> -->
-      <div class="upload" style="text-transform:uppercase; margin:20px 0; cursor:pointer" @click="toggleSection('upload')">
+      <div class="upload" style="text-transform:uppercase; margin:20px 0; cursor:pointer; display:inline-block" @click="toggleSection('upload')">
         <em>Next, Generate a playlist from an image →</em>
       </div>
     </section>
@@ -50,9 +50,10 @@
             <span>{{track.name}}</span>
           </li>
           <li><button v-if="this.swatches.length > 0 && Object.keys(this.top_tracks).length == 0" @click="spotifyAuth">Cool, let's Get your History</button>
-          <button v-if="this.matched_tracks.length > 0" @click="createPlaylist">Save to Spotify</button>
-          <input type="text" placeholder="" />
-          <a v-if="this.embedUrl" :href="this.embedUrl"><button>Open In Spotify</button></a></li>
+          <input type="text" v-model="playlistTitle" placeholder="Name This Playlist"/>
+          <button v-if="this.matched_tracks.length > 0 && !this.embedUrl" @click="createPlaylist">Save to Spotify</button>
+
+          <a v-if="this.embedUrl" :href="this.embedUrl"><button>Open {{playlistTitle}} In Spotify</button></a></li>
         </ul>
       </div>
     </section>
@@ -213,7 +214,7 @@ export default {
       let provider = this.spotifyProvider;
       let updatePlaylist = this.updatePlaylist;
       let now = new Date();
-      let plName = 'Synesthesia ' + now.getTime();
+      let plName = this.playlistTitle || ('Synesthesia ' + now.getTime());
       provider.post(`me/playlists`,
         {
           name:plName,
@@ -471,12 +472,14 @@ export default {
 }
 main{
   background: #f7f7f7;
+  padding: 0 5vh;
 }
 #welcome{
   height: 50vh;
   position: relative;
   background: #ffc454;
   padding: 5vh;
+  margin:0 -5vh;
 }
 #welcome h1{
   font-size: 3rem;
@@ -486,7 +489,6 @@ main{
 .toggle{
   text-align: center;
   border-bottom: 1px solid #2c3450;
-  margin:0 5vh;
 }
 .toggle button{
   background: transparent;
@@ -551,6 +553,13 @@ button:hover{
   color:#fff;
   cursor: pointer;
 }
+input[type="text"]{
+  font-size: 16px;
+  border-radius: 2px;
+  padding: 5px 10px;
+  border: 1px solid;
+  width: 80%;
+}
 input[type="file"]{
   opacity: 0;
   position: absolute;
@@ -585,7 +594,6 @@ h3{
   font-size: 2rem;
   padding: 10vh 5vh;
   background: #4adeef;
-  margin: 5vh 0 0;
 }
 .upload{
   background: #ddd;
