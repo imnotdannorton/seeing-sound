@@ -21,7 +21,7 @@
         <summary>Short Term</summary>
 
       </details> -->
-      <div class="upload" style="text-transform:uppercase; margin:20px 0; cursor:pointer; display:inline-block" @click="toggleSection('upload')">
+      <div class="upload" style="text-transform:uppercase; margin:20px 0; cursor:pointer; display:flex; justify-content:center; align-items:center;" @click="toggleSection('upload')">
         <em>Next, Generate a playlist from an image →</em>
       </div>
     </section>
@@ -546,7 +546,7 @@ button, .button, #embed-wrap a button, button.button{
   transition:background .3s, color .3s;
   padding:12px 24px;
   font-size:16px;
-  margin:12px;
+  margin:12px 0;
 }
 button:hover{
   background:#2c3450;
@@ -663,6 +663,7 @@ em.loading{
   }
   #tracks{
     margin: 0vh 2vh;
+    padding:0;
   }
   #tracks.active{
     transform: translateY(0vh);
@@ -680,6 +681,13 @@ em.loading{
     display: flex;
     justify-content: center;
     align-items: center;
+  }
+  .toggle button{
+    font-size: .7rem;
+    padding: .8rem;
+  }
+  main{
+    width: calc(100% - 10vh);
   }
 }
 </style>
