@@ -1,11 +1,14 @@
 <template>
   <main>
     <div id="welcome">
-      <h1>Hi. Let's see what your favorite music looks like.</h1>
-      <button v-if="Object.keys(this.tracks).length == 0" @click="spotifyAuth">Tell us what you're  listening to.</button>
+      <h1>Let's see what your favorite music looks like.</h1>
+      <button v-if="Object.keys(this.tracks).length == 0" @click="spotifyAuth">Connect to Spotify.</button>
     </div>
-
-    <div id="tracks" v-bind:class="Object.keys(this.tracks).length > 0 ? 'active':''">
+    <div class="toggle" v-if="Object.keys(this.tracks).length > 0">
+      <button @click="toggleSection('list')" v-bind:class="this.activeTab == 'list' ? 'active':''">Song Spectrum</button>
+      <button @click="toggleSection('upload')" v-bind:class="this.activeTab == 'upload' ? 'active':''">Image Playlist</button>
+    </div>
+    <section id="tracks" v-bind:class="(Object.keys(this.tracks).length > 0  && this.activeTab == 'list') ? 'active':''">
       <h2 v-if="Object.keys(this.tracks).length > 0" >Great taste, here's what we see:</h2>
       <ul id="all_tracks" v-if="Object.keys(this.tracks).length > 0" >
         <!-- <li>Your Top Songs</li> -->
@@ -14,57 +17,46 @@
           {{track.name}}
         </li>
       </ul>
-    </div>
-    <h3 v-if="this.swatches.length == 0">So, what to listen to today? Pick a photo of your vibe.</h3>
-    <div class="upload" @drop.prevent="handleDrop" @dragover.prevent>
-      <em>UPLOAD AN IMAGE</em>
-      <input type="file" class="file-upload" ref="profileImage" @change="handleDrop"/>
-    </div>
-    <h3 v-if="this.matched_tracks.length > 0">These {{this.matched_tracks.length}} tracks look like they fit just right. Save them as a playlist and listen wherever you want.</h3>
-    <div class="src-wrap" @drop.prevent="handleDrop" @dragover.prevent>
-      <div class="source-img" ref="srcImg"> </div>
-      <ul>
-        <li v-for="(swatch, index) in this.swatches"  v-bind:key="index">
-          <div v-bind:style="colorize(swatch.getHex())"></div>
-        </li>
-      </ul>
-    </div>
+      <!-- <details v-if="Object.keys(this.tracks).length > 0">
+        <summary>Short Term</summary>
 
-    <!-- <ul id="top_tracks" v-if="Object.keys(this.tracks).length > 0" >
-      <li>Your Top Songs</li>
-      <li v-for="(track, key) in this.tracks"  v-bind:key="key">
-        <div v-bind:style="paint(track)"></div>
-        {{track.name}}
-      </li>
-    </ul> -->
+      </details> -->
+      <div class="upload" style="text-transform:uppercase; margin:20px 0; cursor:pointer" @click="toggleSection('upload')">
+        <em>Next, Generate a playlist from an image →</em>
+      </div>
+    </section>
+    <section id="playlist" v-bind:class="(Object.keys(this.tracks).length > 0  && this.activeTab == 'upload') ? 'active':''">
+      <h3 v-if="this.swatches.length == 0">So, what to listen to today? Pick a photo of your vibe.</h3>
+      <div class="upload" @drop.prevent="handleDrop" @dragover.prevent>
+        <em>UPLOAD AN IMAGE</em>
+        <input type="file" class="file-upload" ref="profileImage" @change="handleDrop"/>
+      </div>
+      <h3 v-if="this.matched_tracks.length > 0">These {{this.matched_tracks.length}} tracks look like they fit just right. Save them as a playlist and listen wherever you want.</h3>
+      <div class="src-wrap" @drop.prevent="handleDrop" @dragover.prevent>
+        <div class="source-img" ref="srcImg"> </div>
+        <ul>
+          <li v-for="(swatch, index) in this.swatches"  v-bind:key="index">
+            <div v-bind:style="colorize(swatch.getHex())"></div>
+          </li>
+        </ul>
+      </div>
+      <div class="list-wrap">
+        <!-- <span>{{Object.keys(this.top_tracks).length}}</span> -->
+        <Chart v-if="this.matched_tracks.length > 0" :tracks="this.matched_tracks" :swatches="this.swatches"/>
+        <ul id="top_tracks" v-if="this.matched_tracks.length > 0" >
+          <!-- <li>Matched Songs:</li> -->
+          <li v-for="track in this.matched_tracks"  v-bind:key="track.id">
+            <div v-bind:style="paint(track)"></div>
+            <span>{{track.name}}</span>
+          </li>
+          <li><button v-if="this.swatches.length > 0 && Object.keys(this.top_tracks).length == 0" @click="spotifyAuth">Cool, let's Get your History</button>
+          <button v-if="this.matched_tracks.length > 0" @click="createPlaylist">Save to Spotify</button>
+          <input type="text" placeholder="" />
+          <a v-if="this.embedUrl" :href="this.embedUrl"><button>Open In Spotify</button></a></li>
+        </ul>
+      </div>
+    </section>
 
-    <div class="list-wrap">
-      <!-- <span>{{Object.keys(this.top_tracks).length}}</span> -->
-      <Chart v-if="this.matched_tracks.length > 0" :tracks="this.matched_tracks" :swatches="this.swatches"/>
-      <ul id="top_tracks" v-if="this.matched_tracks.length > 0" >
-        <!-- <li>Matched Songs:</li> -->
-        <li v-for="track in this.matched_tracks"  v-bind:key="track.id">
-          <div v-bind:style="paint(track)"></div>
-          <span>{{track.name}}</span>
-        </li>
-        <li><button v-if="this.swatches.length > 0 && Object.keys(this.top_tracks).length == 0" @click="spotifyAuth">Cool, let's Get your History</button>
-        <button v-if="this.matched_tracks.length > 0 && !this.embedUrl" @click="createPlaylist">Save to Spotify</button>
-        <a v-if="this.embedUrl" :href="this.embedUrl"><button>Open In Spotify</button></a></li>
-      </ul>
-      <!-- <ul id="rec_tracks" v-if="Object.keys(this.rec_tracks).length > 0" >
-        <li>Recommended Songs:</li>
-        <li v-for="track in this.colorsort(this.rec_tracks)"  v-bind:key="track.id">
-          <div v-bind:style="paint(track)"></div>
-          <span>{{track.name}}</span>
-        </li>
-        <li><button v-if="this.swatches.length > 0 && Object.keys(this.top_tracks).length == 0" @click="spotifyAuth">Cool, let's Get your History</button>
-        <button v-if="this.matched_tracks.length > 0" @click="createPlaylist">Save to Spotify</button></li>
-      </ul> -->
-      <!-- <button v-if="this.swatches.length > 0 && Object.keys(this.top_tracks).length == 0" @click="spotifyAuth">Cool, let's Get your History</button>
-      <div id="embed-wrap" v-if="this.embedUrl">
-
-      </div> -->
-    </div>
 
 
   </main>
@@ -101,8 +93,8 @@ export default {
       bgColor:'',
       merged:false,
       embedUrl:false,
-      loading:false
-
+      loading:false,
+      activeTab:'list'
     }
   },
   mounted() {
@@ -122,6 +114,9 @@ export default {
     }
   },
   methods:{
+    toggleSection(string){
+      this.activeTab = string;
+    },
     colorize(hex){
       let height = (100/this.swatches.length)+'vh'
       let style = `background:${hex}; height:${height}; width:100%;`;
@@ -218,7 +213,7 @@ export default {
       let provider = this.spotifyProvider;
       let updatePlaylist = this.updatePlaylist;
       let now = new Date();
-      let plName = 'Synesthsia ' + now.getTime();
+      let plName = 'Synesthesia ' + now.getTime();
       provider.post(`me/playlists`,
         {
           name:plName,
@@ -311,7 +306,6 @@ export default {
       if(attrs){
         let l = ((attrs.valence + attrs.liveness)/2);
         let s = (attrs.energy + attrs.danceability)/2;
-        // let h = ((attrs.speechiness + attrs.instrumentalness + attrs.danceability)/4);
         let key = attrs.key;
         let h = parseInt(map[key])/360;
         return [h, s, l];
@@ -475,6 +469,9 @@ export default {
 *{
   font-family: 'Barlow', Helvetica, sans-serif;
 }
+main{
+  background: #f7f7f7;
+}
 #welcome{
   height: 50vh;
   position: relative;
@@ -484,9 +481,32 @@ export default {
 #welcome h1{
   font-size: 3rem;
   text-transform: uppercase;
+  background: transparent;
+}
+.toggle{
+  text-align: center;
+  border-bottom: 1px solid #2c3450;
+  margin:0 5vh;
+}
+.toggle button{
+  background: transparent;
+  border: 1px solid transparent;
+  border-bottom: 3px solid transparent;
+  border-radius: 0;
+  margin-bottom:-2px;
+  text-transform: uppercase;
+  font-weight: bold;
+  letter-spacing: 1px;
+  color:#b9b9b9;
+}
+.toggle button.active{
+  color:#2c3450;
+  border-bottom:3px solid #ffc454;
+}
+.toggle button.active:hover{
+  color: #ffc454;
 }
 #tracks{
-  background: #fff;
   min-height: 50vh;
   transform: translateY(0vh);
   opacity: 0;
@@ -497,17 +517,25 @@ export default {
   padding: 0px 20px;
   /* clear: both; */
   /* height: auto; */
-  display: inline-block;
+  /* display: inline-block; */
   transition-delay: .3s;
   transition:transform .2s, opacity .2s;
+}
+section{
+  display: none;
+  z-index: 0;
+  position: relative;
+}
+section.active{
+  display: block;
 }
 #tracks h2{
   padding: 10px 0;
 }
 #tracks.active{
   opacity: 1;
-  transform:translateY(-20vh);
-  margin-bottom: -20vh;
+  /* transform:translateY(-20vh); */
+  /* margin-bottom: -20vh; */
 }
 button, .button, #embed-wrap a button, button.button{
   background:#fff;
