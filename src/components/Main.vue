@@ -21,7 +21,7 @@
         <summary>Short Term</summary>
 
       </details> -->
-      <div class="upload" style="text-transform:uppercase; margin:20px 0; cursor:pointer; display:flex; justify-content:center; align-items:center;" @click="toggleSection('upload')">
+      <div class="upload" style="text-transform:uppercase; margin:20px 0; cursor:pointer; display:flex; justify-content:center; align-items:center;" @click="toggleSection('upload', true)">
         <em>Next, Generate a playlist from an image →</em>
       </div>
     </section>
@@ -115,8 +115,13 @@ export default {
     }
   },
   methods:{
-    toggleSection(string){
+    toggleSection(string, scrollTop){
       this.activeTab = string;
+      if(typeof scrollTop !== 'undefined'){
+        let target = document.getElementById('welcome').offsetHeight;
+        window.scrollTo(0,target);
+      }
+
     },
     colorize(hex){
       let height = (100/this.swatches.length)+'vh'
@@ -623,6 +628,7 @@ h3{
   display: inline-block;
   vertical-align: top;
   position: relative;
+  /* overflow-y: scroll; */
 }
 .list-wrap ul{
   width: 50%;
@@ -655,11 +661,31 @@ em.loading{
   letter-spacing: 3px;
 }
 @media (max-width: 600px){
+  #welcome h1{
+    font-size: 2.4rem;
+  }
   #all_tracks li{
     width: 100%;
   }
+  .source-img{
+    height: 10vh;
+    width: 94%;
+  }
+  .src-wrap, .list-wrap{
+    width:100%
+  }
+  .src-wrap ul{
+    width: 20px;
+    position: relative;
+    float: left;
+    height: 0;
+    transform: scale(.5) translateX(-50px) translateY(-24vh);
+  }
   .list-wrap li{
     font-size: 12px;
+  }
+  .list-wrap{
+    overflow-y: scroll;
   }
   #tracks{
     margin: 0vh 2vh;
@@ -688,6 +714,7 @@ em.loading{
   }
   main{
     width: calc(100% - 10vh);
+    overflow: hidden;
   }
 }
 </style>
